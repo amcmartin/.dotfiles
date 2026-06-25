@@ -1,0 +1,186 @@
+# shellrc — shared shell config for zsh and bash
+# Source this from ~/.zshrc or ~/.bashrc via setup.sh
+
+# ---------------------------------------------------------------------------
+# History
+# ---------------------------------------------------------------------------
+HISTSIZE=10000
+
+if [ -n "$ZSH_VERSION" ]; then
+    SAVEHIST=10000
+    HISTFILE=~/.zsh_history
+    setopt APPEND_HISTORY SHARE_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE HIST_VERIFY
+elif [ -n "$BASH_VERSION" ]; then
+    HISTFILESIZE=10000
+    HISTFILE=~/.bash_history
+    HISTCONTROL=ignoredups:ignorespace
+    shopt -s histappend
+fi
+
+# ----------------------------------------------------------------------------
+# fucntions
+# ----------------------------------------------------------------------------
+parse_git_branch() {
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    [ -n "$branch" ] && echo "($branch) "
+}
+
+set_python_env() {
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "($(basename $VIRTUAL_ENV)) "
+    elif [ -n "$CONDA_DEFAULT_ENV" ]; then
+        echo "($CONDA_DEFAULT_ENV) "
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Prompt
+# ---------------------------------------------------------------------------
+if [ -n "$ZSH_VERSION" ]; then
+    autoload -U colors && colors
+    setopt PROMPT_SUBST
+    PROMPT='%F{13}$(set_python_env)%F{117}$(parse_git_branch)%F{green}%n@%m %~%f %# %f'
+elif [ -n "$BASH_VERSION" ]; then
+    PS1="\[\e[38;5;13m\]\$(set_python_env)\[\e[38;5;117m\]\$(parse_git_branch)\[\e[38;5;10m\]\u@\h \w\[\e[0m\] \$ "
+fi
+
+# ---------------------------------------------------------------------------
+# Completion
+# ---------------------------------------------------------------------------
+if [ -n "$ZSH_VERSION" ]; then
+    autoload -Uz compinit && compinit
+    zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+    if type brew >/dev/null 2>&1; then
+        fpath=($(brew --prefix)/share/zsh/site-functions $fpath)
+    fi
+    fpath=($HOME/.zsh/completion $fpath)
+elif [ -n "$BASH_VERSION" ]; then
+    if [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+    elif [ -f /usr/local/etc/bash_completion ]; then
+        . /usr/local/etc/bash_completion
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Shell options
+# ---------------------------------------------------------------------------
+if [ -n "$ZSH_VERSION" ]; then
+    setopt correct  # auto-correct typos in commands
+    bindkey -v # vi keybindings 
+    bindkey '^R' history-incremental-search-backward
+elif [ -n "$BASH_VERSION" ]; then
+    shopt -s cdspell        # auto-correct cd typos
+    shopt -s checkwinsize   # update LINES/COLUMNS after each command
+fi
+
+# ---------------------------------------------------------------------------
+# Plugins (zsh-specific, sourced if present)
+# ---------------------------------------------------------------------------
+if [ -n "$ZSH_VERSION" ]; then
+    for _plugin in \
+        /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+        /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+        [ -f "$_plugin" ] && source "$_plugin" && break
+    done
+
+    for _plugin in \
+        /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+        /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+        [ -f "$_plugin" ] && source "$_plugin" && break
+    done
+fi
+
+# ---------------------------------------------------------------------------
+# Aliases — universal
+# ---------------------------------------------------------------------------
+alias ..='cd ..'
+alias ...='cd ../..'
+alias grep='grep --color=auto'
+alias cls='clear'
+alias vim='nvim'
+
+alias tmn='tmux new-session -s'
+alias tma='tmux attach -t'
+
+# ls aliases — use GNU ls flags where available, fall back to BSD/macOS
+if [ -n "$ZSH_VERSION" ]; then
+    if gls --color=auto /dev/null >/dev/null 2>&1; then
+        # GNU ls (macOS with coreutils)
+        alias ls='gls --color=auto'
+        alias ll='gls -lah --color=auto'
+        alias la='gls -A --color=auto'
+        alias l='gls -CF --color=auto'
+    else
+        # BSD ls (macOS default)
+        export CLICOLOR=1
+        alias ll='ls -lah'
+        alias la='ls -A'
+        alias l='ls -CF'
+    fi
+elif [ -n "$BASH_VERSION" ]; then
+    if ls --color=auto /dev/null >/dev/null 2>&1; then
+        # GNU ls (Linux or macOS with coreutils)
+        alias ls='ls --color=auto'
+        alias ll='ls -lah --color=auto'
+        alias la='ls -A --color=auto'
+        alias l='ls -CF --color=auto'
+    else
+        # BSD ls (macOS default)
+        export CLICOLOR=1
+        alias ll='ls -lah'
+        alias la='ls -A'
+        alias l='ls -CF'
+    fi
+fi
+
+export LS_COLORS='di=38;5;117:fi=97:ln=1;36:so=1;35:pi=40;33:ex=1;32:bd=40;33;01:cd=40;33;01:su=37;41:sg=30;43:tw=30;42:ow=34;42:*.jpg=31:*.jpeg=31:*.png=31:*.gif=31:*.bmp=31:*.svg=31:*.webp=31'
+
+# ---------------------------------------------------------------------------
+# PATH additions
+# ---------------------------------------------------------------------------
+# Rust/cargo
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+
+# Go
+[ -d /usr/local/go/bin ] && export PATH="/usr/local/go/bin:$PATH"
+
+# ---------------------------------------------------------------------------
+# copy — pipe stdin to clipboard, cross-platform
+# Usage: some-command | copy
+# ---------------------------------------------------------------------------
+copy() {
+    if command -v pbcopy >/dev/null 2>&1; then
+        pbcopy
+    elif command -v xclip >/dev/null 2>&1; then
+        xclip -selection clipboard
+    elif command -v xsel >/dev/null 2>&1; then
+        xsel --clipboard --input
+    elif command -v clip.exe >/dev/null 2>&1; then
+        clip.exe
+    elif [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] || [ -n "$SSH_CONNECTION" ]; then
+        local buf
+        buf=$(cat)
+        if [-z "buf"]; then
+            echo "copy: no input provided" >&2
+            return 1
+        fi
+        # Use OSC 52 escape sequence to copy to clipboard over SSH with base64 encoding
+        if command -v base64 >/dev/null 2>&1; then
+            local encoded
+            encoded=$(echo -n "$buf" | base64)
+            echo -ne "\e]52;c;${encoded}\a"
+        else
+            echo "copy: base64 command not found, cannot copy over SSH" >&2
+            return 1
+        fi
+    else
+        echo "copy: no clipboard tool found (install xclip or xsel on Linux)" >&2
+        return 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Machine-local overrides (not tracked by git)
+# ---------------------------------------------------------------------------
+[ -f "$HOME/.shellrc.local" ] && source "$HOME/.shellrc.local"

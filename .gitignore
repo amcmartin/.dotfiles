@@ -1,0 +1,7 @@
+# machine-local overrides — never commit these
+shellrc.local
+*.local
+!*.shellrc.local.template
+
+# macOS
+.DS_Store

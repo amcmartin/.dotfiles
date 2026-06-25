@@ -32,7 +32,7 @@ else
 fi
 
 #Source shellrc in .zshrc or .bashrc
-if [-f "$HOME/.zshrc"]; then
+if [ -f "$HOME/.zshrc" ]; then
     if ! grep -q "source $SHELLRC" "$HOME/.zshrc"; then
         echo "  Adding source $SHELLRC to .zshrc"
         echo "source $SHELLRC" >> "$HOME/.zshrc"
@@ -42,7 +42,7 @@ if [-f "$HOME/.zshrc"]; then
     fi
 fi
 
-if [-f "$HOME/.bashrc"]; then
+if [ -f "$HOME/.bashrc" ]; then
     if ! grep -q "source $SHELLRC" "$HOME/.bashrc"; then
         echo "  Adding source $SHELLRC to .bashrc"
         echo "source $SHELLRC" >> "$HOME/.bashrc"
@@ -56,7 +56,7 @@ fi
 # Neovim Configuration
 # ============================================================
 echo -e "${YELLOW}[2/4] Setting up Neovim configuration...${RESET}"
-if [-d $DOTFILES_DIR/nvim]; then
+if [ -d $DOTFILES_DIR/nvim ]; then
     mkdir -p "$HOME/.config"
 
     # backup existing nvim config if it exists and is not a symlink
@@ -159,16 +159,10 @@ elif [ -f "$HOME/.bashrc" ]; then
     source "$HOME/.bashrc"
 fi
 
-if command -v tmux >/dev/null 2>&1; then
-    tmux source-file "$HOME/.tmux.conf"
-fi
 
 echo -e "\nNext steps:"
 echo -e "1. Review and edit $LOCAL_FILE to customize your shell configuration."
 echo -e "2. Restart your terminal or run 'source ~/.zshrc' or 'source ~/.bashrc' to apply the changes."
 echo -e "3. Reload your tmux configuration with 'tmux source-file ~/.tmux.conf' if you use tmux."
 echo -e "4. Open Neovim and run ':PlugInstall' to install plugins if you use vim-plug."
-
-
-
-
+done

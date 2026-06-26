@@ -1,0 +1,22 @@
+# gitconfig.local.template — machine-specific git settings
+#
+# Copied to ~/.gitconfig.local by setup.sh. NOT tracked by git.
+# Fill in your identity and any machine-specific or secret values here.
+
+[user]
+    name  = Your Name
+    email = you@example.com
+#   signingkey = YOUR_GPG_KEY_ID
+
+# [commit]
+#     gpgsign = true
+
+# [credential]
+#     helper = osxkeychain                    # macOS
+#     helper = /usr/share/git-core/git-credential-gnome-keyring  # Linux GNOME
+
+# [github]
+#     token = ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# [url "git@github.com:"]
+#     insteadOf = https://github.com/         # force SSH for GitHub

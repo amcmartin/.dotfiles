@@ -119,7 +119,18 @@ else
         rm "$HOME/.gitconfig"
     fi
     ln -sf "$DOTFILES_DIR/git/gitconfig" "$HOME/.gitconfig"
-    echo -e "  ${GREEN}✓${RESET} - Git configuration set up successfully."
+    echo -e "  ${GREEN}✓${RESET} - Git configuration symlinked successfully."
+
+    # create gitconfig.local from template if it doesn't exist
+    GITLOCAL_TEMPLATE="$DOTFILES_DIR/git/gitconfig.local.template"
+    GITLOCAL_FILE="$HOME/.gitconfig.local"
+    if [ ! -f "$GITLOCAL_FILE" ]; then
+        echo "  Creating $GITLOCAL_FILE from template"
+        cp "$GITLOCAL_TEMPLATE" "$GITLOCAL_FILE"
+        echo -e "  ${GREEN}✓${RESET} - Created $GITLOCAL_FILE — fill in your name, email, and any secrets."
+    else
+        echo -e "  ${GREEN}✓${RESET} - $GITLOCAL_FILE already exists — skipping"
+    fi
 fi
 
 # ============================================================

@@ -188,7 +188,7 @@ for dep in "${DEPENDENCIES[@]}"; do
     if command -v "$dep" >/dev/null 2>&1; then
         echo -e "  ${GREEN}✓${RESET} - $dep is installed"
     else
-        local install_name="$dep"
+        install_name="$dep"
         if [ "$dep" = "nvim" ]; then
             install_name="neovim"
         fi
@@ -198,9 +198,9 @@ for dep in "${DEPENDENCIES[@]}"; do
 
 
 # check for ls color support
-if ls --version >/dev/null | grep -q "GNU"; then
+if ls --version 2>/dev/null | grep -q "GNU"; then
     echo -e "  ${GREEN}✓${RESET} - ls supports color"
-elif gls --version >/dev/null | grep -q "GNU"; then
+elif gls --version 2>/dev/null | grep -q "GNU"; then
     echo -e "  ${GREEN}✓${RESET} - ls (GNU ls) supports color"
 else
     echo -e "  ${YELLOW}⚠${RESET} - GNU coreutils (ls) is not installed. Install with: brew install coreutils (macOS) or sudo apt install coreutils (Linux)"

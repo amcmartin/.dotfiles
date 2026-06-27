@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Syntax-checks staged files before each commit.
+# Installed into .git/hooks/pre-commit by setup.sh.
+
+FAIL=0
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RESET='\033[0m'
+
+pass() { echo -e "  ${GREEN}✓${RESET} $1"; }
+fail() { echo -e "  ${RED}✗${RESET} $1"; FAIL=1; }
+warn() { echo -e "  ${YELLOW}⚠${RESET} $1"; }
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# ---------------------------------------------------------------------------
+# Shell — bash -n
+# ---------------------------------------------------------------------------
+shell_files=$(echo "$staged" | grep -E '(\.sh$|^shellrc$|^shellrc\.local\.template$)')
+if [ -n "$shell_files" ]; then
+    echo "Checking shell syntax (bash -n)..."
+    while IFS= read -r f; do
+        err=$(bash -n "$f" 2>&1)
+        if [ $? -eq 0 ]; then
+            pass "$f"
+        else
+            fail "$f"
+            echo "    $err"
+        fi
+    done <<< "$shell_files"
+fi
+
+# ---------------------------------------------------------------------------
+# Shell — shellcheck (optional, errors only)
+# ---------------------------------------------------------------------------
+if command -v shellcheck >/dev/null 2>&1 && [ -n "$shell_files" ]; then
+    echo "Running shellcheck..."
+    while IFS= read -r f; do
+        if shellcheck --severity=error "$f" 2>/dev/null; then
+            pass "$f (shellcheck)"
+        else
+            fail "$f (shellcheck)"
+            shellcheck --severity=error "$f" 2>&1 | sed 's/^/    /'
+        fi
+    done <<< "$shell_files"
+else
+    [ -n "$shell_files" ] && warn "shellcheck not found — install for deeper shell analysis"
+fi
+
+# ---------------------------------------------------------------------------
+# Lua — luac -p
+# ---------------------------------------------------------------------------
+lua_files=$(echo "$staged" | grep -E '\.lua$')
+if [ -n "$lua_files" ]; then
+    if command -v luac >/dev/null 2>&1; then
+        echo "Checking Lua syntax..."
+        while IFS= read -r f; do
+            err=$(luac -p "$f" 2>&1)
+            if [ $? -eq 0 ]; then
+                pass "$f"
+            else
+                fail "$f"
+                echo "    $err"
+            fi
+        done <<< "$lua_files"
+    else
+        warn "luac not found — skipping Lua syntax check (install lua)"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# JSON — jq / python3
+# ---------------------------------------------------------------------------
+json_files=$(echo "$staged" | grep -E '\.json$')
+if [ -n "$json_files" ]; then
+    echo "Checking JSON syntax..."
+    while IFS= read -r f; do
+        if command -v jq >/dev/null 2>&1; then
+            err=$(jq empty "$f" 2>&1)
+        else
+            err=$(python3 -m json.tool "$f" >/dev/null 2>&1)
+        fi
+        if [ $? -eq 0 ]; then
+            pass "$f"
+        else
+            fail "$f"
+            echo "    $err"
+        fi
+    done <<< "$json_files"
+fi
+
+# ---------------------------------------------------------------------------
+# Git config
+# ---------------------------------------------------------------------------
+git_files=$(echo "$staged" | grep -E 'gitconfig')
+if [ -n "$git_files" ]; then
+    echo "Checking git config syntax..."
+    while IFS= read -r f; do
+        err=$(git config --file "$f" --list 2>&1 >/dev/null)
+        if [ $? -eq 0 ]; then
+            pass "$f"
+        else
+            fail "$f"
+            echo "    $err"
+        fi
+    done <<< "$git_files"
+fi
+
+# ---------------------------------------------------------------------------
+if [ "$FAIL" -ne 0 ]; then
+    echo -e "\n${RED}Pre-commit failed — fix the errors above and re-stage.${RESET}"
+    exit 1
+fi

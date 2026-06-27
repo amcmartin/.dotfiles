@@ -20,7 +20,7 @@ echo -e "${CYAN}Setting up shell configuration...${RESET}"
 # Shell configuration
 # ============================================================
 
-echo -e "${YELLOW}[1/4] Setting up shellrc configuration...${RESET}"
+echo -e "${YELLOW}[1/5] Setting up shellrc configuration...${RESET}"
 
 # create shellrc.local if it doesn't exist
 if [ ! -f "$LOCAL_FILE" ]; then
@@ -55,7 +55,7 @@ fi
 # ============================================================
 # Neovim Configuration
 # ============================================================
-echo -e "${YELLOW}[2/4] Setting up Neovim configuration...${RESET}"
+echo -e "${YELLOW}[2/5] Setting up Neovim configuration...${RESET}"
 if [ -d $DOTFILES_DIR/nvim ]; then
     mkdir -p "$HOME/.config"
 
@@ -80,7 +80,7 @@ fi
 # ============================================================
 # Tmux Configuration
 # ============================================================
-echo -e "${YELLOW}[3/4] Setting up Tmux configuration...${RESET}"
+echo -e "${YELLOW}[3/5] Setting up Tmux configuration...${RESET}"
 
 if [ ! -d "$DOTFILES_DIR/tmux" ]; then
     echo -e "  ${YELLOW}⚠${RESET} - Tmux configuration directory $DOTFILES_DIR/tmux does not exist. Skipping Tmux setup."
@@ -103,7 +103,7 @@ fi
 # ============================================================
 # Git Configuration
 # ============================================================
-echo -e "${YELLOW}[4/4] Setting up Git configuration...${RESET}"
+echo -e "${YELLOW}[4/5] Setting up Git configuration...${RESET}"
 if [ ! -d "$DOTFILES_DIR/git" ]; then
     echo -e "  ${YELLOW}⚠${RESET} - Git configuration directory $DOTFILES_DIR/git does not exist. Skipping Git setup."
 else
@@ -131,6 +131,52 @@ else
     else
         echo -e "  ${GREEN}✓${RESET} - $GITLOCAL_FILE already exists — skipping"
     fi
+fi
+
+# ============================================================
+# Ghostty Configuration
+# ============================================================
+echo -e "${YELLOW}[5/5] Setting up Ghostty configuration...${RESET}"
+
+if command -v ghostty >/dev/null 2>&1; then
+    GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
+    GHOSTTY_CONFIG="$GHOSTTY_CONFIG_DIR/config"
+    mkdir -p "$GHOSTTY_CONFIG_DIR"
+
+    # Backup existing ghostty config if it exists and is not a symlink
+    if [ -e "$GHOSTTY_CONFIG" ] && [ ! -L "$GHOSTTY_CONFIG" ]; then
+        BACKUP_FILE="$GHOSTTY_CONFIG.backup.$(date +%Y%m%d%H%M%S)"
+        echo "  Backing up existing ghostty config to $BACKUP_FILE"
+        mv "$GHOSTTY_CONFIG" "$BACKUP_FILE"
+    fi
+
+    # Remove existing symlink if it exists
+    if [ -L "$GHOSTTY_CONFIG" ]; then
+        echo "  Removing existing symlink for ghostty config"
+        rm "$GHOSTTY_CONFIG"
+    fi
+
+    ln -sf "$DOTFILES_DIR/ghostty/config" "$GHOSTTY_CONFIG"
+    echo -e "  ${GREEN}✓${RESET} - Ghostty configuration symlinked successfully."
+else
+    echo -e "  ${YELLOW}⚠${RESET} - Ghostty is not installed — skipping Ghostty setup."
+fi
+
+# ============================================================
+# Git hooks
+# ============================================================
+echo -e "${YELLOW}Installing git hooks...${RESET}"
+HOOKS_SRC="$DOTFILES_DIR/hooks"
+HOOKS_DEST="$DOTFILES_DIR/.git/hooks"
+if [ -d "$HOOKS_SRC" ] && [ -d "$HOOKS_DEST" ]; then
+    for hook in "$HOOKS_SRC"/*; do
+        hook_name=$(basename "$hook")
+        ln -sf "$hook" "$HOOKS_DEST/$hook_name"
+        chmod +x "$hook"
+        echo -e "  ${GREEN}✓${RESET} - Installed $hook_name hook"
+    done
+else
+    echo -e "  ${YELLOW}⚠${RESET} - hooks directory or .git/hooks not found — skipping"
 fi
 
 # ============================================================

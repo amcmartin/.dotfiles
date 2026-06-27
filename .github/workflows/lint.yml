@@ -1,0 +1,85 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell syntax (bash -n)
+        run: |
+          fail=0
+          for f in setup.sh shellrc shellrc.local.template; do
+            if [ -f "$f" ]; then
+              if bash -n "$f"; then
+                echo "OK: $f"
+              else
+                echo "FAIL: $f"
+                fail=1
+              fi
+            fi
+          done
+          exit $fail
+
+      - name: ShellCheck
+        run: |
+          fail=0
+          for f in setup.sh shellrc shellrc.local.template; do
+            if [ -f "$f" ]; then
+              if shellcheck --severity=error "$f"; then
+                echo "OK: $f"
+              else
+                echo "FAIL: $f"
+                fail=1
+              fi
+            fi
+          done
+          exit $fail
+
+      - name: Lua syntax
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            if luac -p "$f"; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f"
+              fail=1
+            fi
+          done < <(find . -name '*.lua' -not -path './.git/*' -print0)
+          exit $fail
+
+      - name: JSON syntax
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            if jq empty "$f"; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f"
+              fail=1
+            fi
+          done < <(find . -name '*.json' -not -path './.git/*' -print0)
+          exit $fail
+
+      - name: Git config syntax
+        run: |
+          fail=0
+          for f in git/gitconfig git/gitconfig.local.template; do
+            if [ -f "$f" ]; then
+              if git config --file "$f" --list > /dev/null; then
+                echo "OK: $f"
+              else
+                echo "FAIL: $f"
+                fail=1
+              fi
+            fi
+          done
+          exit $fail

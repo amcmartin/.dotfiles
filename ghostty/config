@@ -1,0 +1,4 @@
+theme = iTerm2 Dark Background
+
+shell-integration = detect
+shell-integration-features = notify

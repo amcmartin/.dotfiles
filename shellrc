@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # shellrc — shared shell config for zsh and bash
 # Source this from ~/.zshrc or ~/.bashrc via setup.sh
 
@@ -161,7 +162,7 @@ copy() {
     elif [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] || [ -n "$SSH_CONNECTION" ]; then
         local buf
         buf=$(cat)
-        if [-z "buf"]; then
+        if [ -z "$buf" ]; then
             echo "copy: no input provided" >&2
             return 1
         fi

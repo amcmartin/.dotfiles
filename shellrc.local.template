@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # shellrc.local.template — machine-specific environment and aliases
 #
 # Copy to ~/.shellrc.local (done automatically by setup.sh).

@@ -31,24 +31,38 @@ else
     echo -e "  ${GREEN}✓${RESET} - $LOCAL_FILE already exists — skipping"
 fi
 
-#Source shellrc in .zshrc or .bashrc
-if [ -f "$HOME/.zshrc" ]; then
-    if ! grep -q "source $SHELLRC" "$HOME/.zshrc"; then
-        echo "  Adding source $SHELLRC to .zshrc"
-        echo "source $SHELLRC" >> "$HOME/.zshrc"
-        echo -e "  ${GREEN}✓${RESET} - Added source $SHELLRC to .zshrc"
+# Source shellrc from the interactive rc file (.zshrc / .bashrc).
+# A fresh macOS install has no ~/.zshrc (only a ~/.zprofile from Homebrew),
+# so create the rc file for the user's login shell if it doesn't exist.
+# .zprofile is left alone: it only runs for login shells and is where
+# Homebrew's `brew shellenv` belongs.
+add_source_line() {
+    rc="$1"
+    touch "$rc"
+    if ! grep -qF "$SHELLRC" "$rc"; then
+        printf '\n# dotfiles shellrc\n[ -f "%s" ] && source "%s"\n' "$SHELLRC" "$SHELLRC" >> "$rc"
+        echo -e "  ${GREEN}✓${RESET} - Added shellrc to $rc"
     else
-        echo -e "  ${GREEN}✓${RESET} - $SHELLRC already sourced in .zshrc — skipping"
+        echo -e "  ${GREEN}✓${RESET} - shellrc already sourced in $rc — skipping"
     fi
-fi
+}
 
-if [ -f "$HOME/.bashrc" ]; then
-    if ! grep -q "source $SHELLRC" "$HOME/.bashrc"; then
-        echo "  Adding source $SHELLRC to .bashrc"
-        echo "source $SHELLRC" >> "$HOME/.bashrc"
-        echo -e "  ${GREEN}✓${RESET} - Added source $SHELLRC to .bashrc"
-    else
-        echo -e "  ${GREEN}✓${RESET} - $SHELLRC already sourced in .bashrc — skipping"
+# Set up the login shell's rc file (created if missing), plus any other
+# rc file that already exists
+LOGIN_SHELL="$(basename "${SHELL:-}")"
+for _shell in zsh bash; do
+    _rc="$HOME/.${_shell}rc"
+    if [ "$LOGIN_SHELL" = "$_shell" ] || [ -f "$_rc" ]; then
+        add_source_line "$_rc"
+    fi
+done
+
+# macOS bash login shells read .bash_profile, not .bashrc
+if [ -f "$HOME/.bashrc" ] && [ "$(uname)" = "Darwin" ]; then
+    touch "$HOME/.bash_profile"
+    if ! grep -qF '.bashrc' "$HOME/.bash_profile"; then
+        printf '\n# source .bashrc for login shells\n[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"\n' >> "$HOME/.bash_profile"
+        echo -e "  ${GREEN}✓${RESET} - Added .bashrc sourcing to ~/.bash_profile"
     fi
 fi
 
@@ -82,8 +96,8 @@ fi
 # ============================================================
 echo -e "${YELLOW}[3/5] Setting up Tmux configuration...${RESET}"
 
-if [ ! -d "$DOTFILES_DIR/tmux" ]; then
-    echo -e "  ${YELLOW}⚠${RESET} - Tmux configuration directory $DOTFILES_DIR/tmux does not exist. Skipping Tmux setup."
+if [ ! -f "$DOTFILES_DIR/tmux.conf" ]; then
+    echo -e "  ${YELLOW}⚠${RESET} - Tmux configuration file $DOTFILES_DIR/tmux.conf does not exist. Skipping Tmux setup."
 else
     # Backup existing tmux config if it exists and is not a symlink
     if [ -e "$HOME/.tmux.conf" ] && [ ! -L "$HOME/.tmux.conf" ]; then
@@ -195,6 +209,7 @@ for dep in "${DEPENDENCIES[@]}"; do
         echo -e "  ${YELLOW}⚠${RESET} - $dep is not installed."
         echo "    Install with: brew install $install_name (macos) or sudo apt install $install_name (linux)"
     fi
+done
 
 
 # check for ls color support
@@ -210,16 +225,9 @@ fi
 # Final message
 # ============================================================
 echo -e "\n${GREEN}Shell configuration setup complete!${RESET}"
-if [ -f "$HOME/.zshrc" ]; then 
-    source "$HOME/.zshrc"
-elif [ -f "$HOME/.bashrc" ]; then
-    source "$HOME/.bashrc"
-fi
-
 
 echo -e "\nNext steps:"
 echo -e "1. Review and edit $LOCAL_FILE to customize your shell configuration."
-echo -e "2. Restart your terminal or run 'source ~/.zshrc' or 'source ~/.bashrc' to apply the changes."
+echo -e "2. Restart your terminal or run 'exec \$SHELL -l' to apply the changes."
 echo -e "3. Reload your tmux configuration with 'tmux source-file ~/.tmux.conf' if you use tmux."
 echo -e "4. Open Neovim and run ':PlugInstall' to install plugins if you use vim-plug."
-done
